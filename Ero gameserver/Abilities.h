@@ -77,9 +77,6 @@ void InternalServerTryActivateAbilityHook(UFortAbilitySystemComponentAthena* Abi
     if (!Spec)
         return AbilitySystemComponent->ClientActivateAbilityFailed(Handle, PredictionKey.Current);
 
-    // Consume any pending target info, to clear out cancels from old executions
-    //ConsumeAllReplicatedData(Handle, PredictionKey);
-
     UGameplayAbility* AbilityToActivate = Spec->Ability;
 
     UGameplayAbility* InstancedAbility = nullptr;
@@ -87,10 +84,11 @@ void InternalServerTryActivateAbilityHook(UFortAbilitySystemComponentAthena* Abi
 
     // Attempt to activate the ability (server side) and tell the client if it succeeded or failed.
     AFortPlayerStateAthena* PS = (AFortPlayerStateAthena*)AbilitySystemComponent->GetOwner();
-    auto Pawn = PS->GetCurrentPawn();
-    AFortPlayerController* PC = nullptr;
-    if (!Pawn) goto activate;
-    PC = (AFortPlayerController*)Pawn->GetOwner();
+    auto Pawn = PS ? PS->GetCurrentPawn() : nullptr;
+    AFortPlayerController* PC = Pawn ? (AFortPlayerController*)Pawn->GetOwner() : nullptr;
+
+    if (!PC) goto activate;
+
     if (Spec->Ability->GetName() == "Default__GAB_InterrogatePlayer_Reveal_C") {
         if ((Pawn->GetHealth() + 20.f) >= 100) {
             auto NewShield = (Pawn->GetShield() + 20.f) >= 100 ? 100 : (Pawn->GetShield() + 20.f);
@@ -102,27 +100,40 @@ void InternalServerTryActivateAbilityHook(UFortAbilitySystemComponentAthena* Abi
         }
     }
     else if (Spec->Ability->GetName() == "Default__GAT_Athena_c4_Detonate_C") {
-        auto Def = StaticLoadObject<UFortItemDefinition>("/Game/Athena/Items/Consumables/C4/Athena_C4.Athena_C4");
-        float MaxStackSize = GetMaxStackSize(Def);
+        auto C4Def = StaticLoadObject<UFortItemDefinition>("/Game/Athena/Items/Consumables/C4/Athena_C4.Athena_C4");
+        if (!C4Def) {
+            goto activate;
+        }
+
+        float MaxStackSize = GetMaxStackSize(C4Def);
         FFortItemEntry* FoundEntry = nullptr;
 
-        for (int32 i = 0; i < PC->WorldInventory->Inventory.ReplicatedEntries.Num(); i++)
-        {
+        for (int32 i = 0; i < PC->WorldInventory->Inventory.ReplicatedEntries.Num(); i++) {
             FFortItemEntry& Entry = PC->WorldInventory->Inventory.ReplicatedEntries[i];
 
-            if (Entry.ItemDefinition == Def && (Entry.Count < MaxStackSize))
-            {
-                FoundEntry = &PC->WorldInventory->Inventory.ReplicatedEntries[i];
+            if (Entry.ItemDefinition == C4Def) {
+                if (Entry.Count > 0) {
+                    FoundEntry = &Entry;
+                    break;
+                }
             }
         }
 
-        if (FoundEntry && FoundEntry->Count == 0) {
-            Remove(PC, Def);
+        if (FoundEntry) {
+            if (FoundEntry->Count > 0) {
+                // Remove one C4 from inventory
+                FoundEntry->Count--;
+                if (FoundEntry->Count <= 0) {
+                    Remove(PC, C4Def);
+                }
+            }
+        }
+        else {
         }
     }
+
 activate:
-    if (!InternalTryActivateAbility(AbilitySystemComponent, Handle, PredictionKey, &InstancedAbility, nullptr, TriggerEventData))
-    {
+    if (!InternalTryActivateAbility(AbilitySystemComponent, Handle, PredictionKey, &InstancedAbility, nullptr, TriggerEventData)) {
         AbilitySystemComponent->ClientActivateAbilityFailed(Handle, PredictionKey.Current);
         Spec->InputPressed = false;
         AbilitySystemComponent->ActivatableAbilities.MarkItemDirty(*Spec);
