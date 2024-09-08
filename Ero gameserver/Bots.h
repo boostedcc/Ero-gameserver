@@ -168,8 +168,8 @@ void TickBots()
 				if (WillShoot == 1) {
 					printf("[EON AI]: Can Hit player!\n");
 
-					float RandomYaw = GetMath()->RandomFloatInRange(-120.0f, 120.0f);
-					float RandomPitch = GetMath()->RandomFloatInRange(-90.0f, 90.0f);
+					float RandomYaw = GetMath()->RandomFloatInRange(-70.0f, 70.0f);
+					float RandomPitch = GetMath()->RandomFloatInRange(-60.0f, 60.0f);
 
 					FVector TargetPosTest{ TargetPos.X + RandomPitch, TargetPos.Y + RandomYaw, TargetPos.Z };
 
@@ -180,8 +180,8 @@ void TickBots()
 				}
 				else {
 
-					float RandomYaw = GetMath()->RandomFloatInRange(-280.0f, 280.0f);
-					float RandomPitch = GetMath()->RandomFloatInRange(-120.0f, 120.0f);
+					float RandomYaw = GetMath()->RandomFloatInRange(-180.0f, 180.0f);
+					float RandomPitch = GetMath()->RandomFloatInRange(-60.0f, 60.0f);
 
 					FVector TargetPosFake{ TargetPos.X + RandomPitch, TargetPos.Y + RandomYaw, TargetPos.Z };
 					auto TestRot = GetMath()->FindLookAtRotation(BotPos, TargetPosFake);
